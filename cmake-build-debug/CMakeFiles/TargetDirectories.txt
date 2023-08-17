@@ -1,0 +1,3 @@
+C:/Users/itay8/Desktop/C_lab/asmbler_2/cmake-build-debug/CMakeFiles/asmbler_2.dir
+C:/Users/itay8/Desktop/C_lab/asmbler_2/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/itay8/Desktop/C_lab/asmbler_2/cmake-build-debug/CMakeFiles/rebuild_cache.dir
