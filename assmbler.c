@@ -22,12 +22,23 @@ void assemble(FILE *file) {
     input_file = file;
     first_pass();
     print_instruction_image();
+    print_word_image();
     /*second_pass();*/
 }
 void print_word_image(){
-
+    int i;
+    for(i = 0; i < dc ; i++)
+        print_memory_word(word_image[i].word);
 }
+void print_memory_word(unsigned int word) {
 
+
+    int i;
+    for (i = 11; i >= 0; i--) {
+        printf("%d", (word >> i) & 1);
+    }
+    printf("\n");
+}
 void print_absolute_value(instruction_absolute_value inst) {
 
     unsigned int value = (inst.value << 2) | inst.ARE;
@@ -170,7 +181,6 @@ int first_pass() {
 
         if (is_symbol == TRUE) {
             /* Found all the information for making symbol entry */
-
 
             if (symbol_lookup(temp_symbol.label) != NULL) {
                 /* There is already a symbol with that label */
@@ -483,7 +493,7 @@ int get_data_type(const char *token) {
 
 
 struct nlist *symbol_install(symbol *symbol_entry) {
-    return install(symbol_table, symbol_entry->label, symbol_entry, TAB_SIZE);
+    return install(symbol_table, symbol_entry->label, symbol_entry, TAB_SIZE, sizeof(symbol_entry));
 
 }
 

@@ -61,3 +61,14 @@
 135	317	7140924924550626	asmbler_2.exe	b8f8439456a03ae9
 2	136	7140926343509070	CMakeFiles/asmbler_2.dir/assmbler.c.obj	4e72fee1e1acb7ec
 136	249	7140926344585870	asmbler_2.exe	b8f8439456a03ae9
+6	175	7140931918448321	CMakeFiles/asmbler_2.dir/main.c.obj	3f19d5869702b68b
+5	395	7140931986158448	CMakeFiles/asmbler_2.dir/assmbler.c.obj	4e72fee1e1acb7ec
+396	834	7140931990031746	asmbler_2.exe	b8f8439456a03ae9
+3	238	7140938976265431	CMakeFiles/asmbler_2.dir/assmbler.c.obj	4e72fee1e1acb7ec
+239	340	7140938977398254	asmbler_2.exe	b8f8439456a03ae9
+2	69	7140944746355463	CMakeFiles/asmbler_2.dir/lookup_table.c.obj	6632de764a6caae6
+69	161	7140944747223204	asmbler_2.exe	b8f8439456a03ae9
+14	130	7140947380083832	CMakeFiles/asmbler_2.dir/lookup_table.c.obj	6632de764a6caae6
+3	131	7140947380083832	CMakeFiles/asmbler_2.dir/main.c.obj	3f19d5869702b68b
+8	183	7140947380638742	CMakeFiles/asmbler_2.dir/assmbler.c.obj	4e72fee1e1acb7ec
+183	324	7140947381996206	asmbler_2.exe	b8f8439456a03ae9

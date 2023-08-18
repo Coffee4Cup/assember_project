@@ -103,7 +103,8 @@ int second_pass(void);
 int print_parameters(int i, instruction_signature signature);
 int get_instruction_lines(instruction_signature signature);
 void print_instruction_image();
-
+void print_memory_word(unsigned int word);
+void print_word_image();
 /*label related functions*/
 int is_label_decleration(const char *token);
 int is_valid_label(const char *token);
