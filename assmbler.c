@@ -21,14 +21,24 @@ void assemble(FILE *file) {
     first_pass();
     /*second_pass();*/
 }
-
-int first_pass() {
-
+void reset_first_pass_values() {
+    ic = 0;
+    dc = 0;
     valid_file = TRUE;
     line_count = 1;
 
+    memset(symbol_table, 0, sizeof(symbol_table));
+    memset(word_image, 0, sizeof(word_image));
+    memset(instruction_image, 0, sizeof(instruction_image));
+}
+
+
+int first_pass() {
+
     int data_type, command_code;
     char *token, line[MAX_LINE_LEN];
+
+    reset_first_pass_values();
 
     symbol temp_symbol; /*temporary symbol struct that holds values for a symbol entry later*/
     int is_symbol;      /*flag for defining symbol state ==OUT/ IN*/
@@ -191,43 +201,44 @@ unsigned int get_operand_data(char *parameter);
 int is_10bit_number(char *operand);
 
 /*puts the instruction in the image of the instructions. assumes that the parameter types are valid and checks the values of the parameter for the claimed type given */
-void put_instruction_values_in_image(int source_type, int destination_type, char *destination_parameter, char * source_parameter) {
+void put_instruction_values_in_image(int source_type, int destination_type, char *destination_parameter, char *source_parameter) {
+    instruction_word inst_word;
 
     if (source_type != NOT_ADD) {
         if (source_type == DIR_REGISTER_ADD) {
-            instruction_image[ic].reg_value.source_register = get_register(source_parameter);
-            instruction_image[ic].reg_value.ARE = Absolute;
-
-            if (destination_type == DIR_REGISTER_ADD) {/*if both the source and the destination are registers*/
-                instruction_image[ic].reg_value.destination_register = get_register(destination_parameter);
-                instruction_image[ic].reg_value.ARE = Absolute;
-            }
-            ic++;
-            return;
-        } else if (source_type == IMMEDIATE_ADD) {/*if the source_type is a data value (like 12 or 'a')*/
-            instruction_image[ic].data_value.value = get_operand_data(source_parameter);/*checks and returns a value of a single char for 10 bit word (2 bits for ARE or taken for this data)*/
-            instruction_image[ic].data_value.ARE = Absolute;
-        } else/*destination_type == DIR_ADD*/
-        {/*if the address is a relocatable address for a label*/
-            instruction_image[ic].label = strdup(destination_parameter);/*saves thew label of the symbol for later implementation in the secound pass*/
+            inst_word.reg_value.source_register = get_register(source_parameter);
+            inst_word.reg_value.ARE = Absolute;
+        } else if (source_type == IMMEDIATE_ADD) {
+            inst_word.data_value.value = get_operand_data(source_parameter);
+            inst_word.data_value.ARE = Absolute;
+        } else if (source_type == DIR_ADD) {
+            inst_word.data_value.value = 0;  // Not using the value field for labels
+            inst_word.data_value.ARE = Relocatable;
+            strncpy(inst_word.label, source_parameter, MAX_LABEL_LEN - 1);
+            inst_word.label[MAX_LABEL_LEN - 1] = '\0';  // Ensure null-termination
         }
+        instruction_image[ic] = inst_word;
         ic++;
     }
 
     if (destination_type != NOT_ADD) {
         if (destination_type == DIR_REGISTER_ADD) {
-            instruction_image[ic].reg_value.destination_register = get_register(destination_parameter);
-            instruction_image[ic].reg_value.ARE = Absolute;
-        } else if (destination_type == IMMEDIATE_ADD) {/*if the source_type is a data value (like 12 or 'a')*/
-            instruction_image[ic].data_value.value = get_operand_data(destination_parameter);
-            instruction_image[ic].data_value.ARE = Absolute;
+            inst_word.reg_value.destination_register = get_register(destination_parameter);
+            inst_word.reg_value.ARE = Absolute;
+        } else if (destination_type == IMMEDIATE_ADD) {
+            inst_word.data_value.value = get_operand_data(destination_parameter);
+            inst_word.data_value.ARE = Absolute;
+            instruction_image[ic] = inst_word;
             ic++;
-        } else/*destination_type == DIR_ADD*/
-        {/*if the address is a relocatable address for a label*/
-            instruction_image[ic].label = strdup(destination_parameter);/*saves thew label of the symbol for later implementation in the secound pass*/
+        } else if (destination_type == DIR_ADD) {
+            inst_word.data_value.value = 0;  // Not using the value field for labels
+            inst_word.data_value.ARE = Relocatable;
+            strncpy(inst_word.label, destination_parameter, MAX_LABEL_LEN - 1);
+            inst_word.label[MAX_LABEL_LEN - 1] = '\0';  // Ensure null-termination
+            instruction_image[ic] = inst_word;
+            ic++;
         }
     }
-    ic++;
 }
 /* return the value of a single character or a number given to a function, checks if their values can fit inside a 10 bit word
  * if the values are not valid return -1 */
@@ -285,9 +296,10 @@ void get_command(int command_code, const char *parameters_string)
     char* source_parameter = malloc(MAX_LINE_LEN);
     char*  destination_parameter = malloc(MAX_LINE_LEN);
     int source_type, destination_type;
-    get_command_parameters(command_code, parameters_string, source_parameter, destination_parameter);
-    get_operand_type(source_parameter, &source_type);
-    get_operand_type(destination_parameter, &destination_type);
+    get_command_parameters(command_code, parameters_string, &source_parameter, &destination_parameter);
+
+        get_operand_type(source_parameter, &source_type);
+        get_operand_type(destination_parameter, &destination_type);
 
     if(is_prototype_match(command_code, source_type, destination_type))
     {
@@ -386,27 +398,26 @@ struct nlist *symbol_lookup(char *label)
 }
 
 /*gets a string from the file that holds the parameter or parameters of a command */
-void get_command_parameters(int command_code,const char *parameters_string, char* first_parameter, char* second_parameter){
-
+void get_command_parameters(int command_code, const char *parameters_string, char **first_parameter, char **second_parameter) {
     int second_parameter_type = NOT_OPCODE, first_parameter_type = NOT_OPCODE;
     char *param_temp_ptr;
 
-
     SKIP_WHITE_SPACE(parameters_string);
-    param_temp_ptr = second_parameter;
-    PUT_WORD(second_parameter, parameters_string);
-    second_parameter = param_temp_ptr;
-    get_operand_type(second_parameter, &second_parameter_type);
+
+    param_temp_ptr = *first_parameter;
+    PUT_WORD(*first_parameter, parameters_string);
+    *first_parameter = param_temp_ptr;
+    get_operand_type(*first_parameter, &first_parameter_type);
 
     SKIP_WHITE_SPACE(parameters_string);
 
     if (parameters_string != NULL && *parameters_string == ',') {
         parameters_string++;
         SKIP_WHITE_SPACE(parameters_string);
-        param_temp_ptr = first_parameter;
-        PUT_WORD(first_parameter, parameters_string);
-        first_parameter = param_temp_ptr;
-        get_operand_type(first_parameter, &first_parameter_type);
+        param_temp_ptr = *second_parameter;
+        PUT_WORD(*second_parameter, parameters_string);
+        *second_parameter = param_temp_ptr;
+        get_operand_type(*second_parameter, &second_parameter_type);
     }
 }
 
@@ -419,8 +430,6 @@ void get_operand_type(const char *operand, int *operand_type) {
         *operand_type = DIR_REGISTER_ADD;
     } else {
         *operand_type = NOT_ADD;
-        printf("ERROR: Operand \"%s\" at line %d is not a known operand type or not valid.\n",operand, line_count);
-        valid_file = FALSE;
     }
 }
 
@@ -501,7 +510,7 @@ void get_string(const char *string_value)
 }
 
 
-int is_prototype_match(int command_code, int source_parameter_type, int destination_parameter_type) {
+int is_prototype_match(int command_code, int first_param_type, int second_param_type) {
     const static prototype prototypes[] = {
             {{TRUE,  TRUE,  TRUE},  {FALSE, TRUE,  TRUE}},/* mov */
             {{TRUE,  TRUE,  TRUE},  {TRUE,  TRUE,  TRUE}},/* cmp */
@@ -522,18 +531,18 @@ int is_prototype_match(int command_code, int source_parameter_type, int destinat
     };
     if (command_code >= 0 && command_code < sizeof(prototypes) / sizeof(prototypes[0]))
     {
-        if ((MOV <= command_code && command_code <= SUB || command_code == LEA) && source_parameter_type &&
-            destination_parameter_type)/*if the command is a two-parameter type*/
+        if ((MOV <= command_code && command_code <= SUB || command_code == LEA) && first_param_type &&
+            second_param_type)/*if the command is a two-parameter type*/
         {
-            is_operand_match(prototypes[command_code].src_operand, source_parameter_type);
-            is_operand_match(prototypes[command_code].dest_operand, destination_parameter_type);
+            is_operand_match(prototypes[command_code].src_operand, first_param_type);
+            is_operand_match(prototypes[command_code].dest_operand, second_param_type);
         }
         else if ((command_code == NOT || command_code == CLR || INC <= command_code && command_code <= JSR) &&
-                 source_parameter_type && !destination_parameter_type)
+                 first_param_type && !second_param_type)
         {
-            is_operand_match(prototypes[command_code].dest_operand, source_parameter_type);
+            is_operand_match(prototypes[command_code].dest_operand, first_param_type);
         }
-        else if (!((command_code == RTS || command_code == STOP) && !source_parameter_type && !destination_parameter_type))
+        else if (!((command_code == RTS || command_code == STOP) && !first_param_type && !second_param_type))
         {/*if the */
             printf("ERROR: The command doesn't match the number of parameters given in line %d\n", line_count);
             valid_file = FALSE;

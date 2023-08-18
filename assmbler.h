@@ -57,7 +57,7 @@ typedef union {
     instruction_signature signature;
     instruction_absolute_value data_value;
     instruction_register_value reg_value;
-    char *label;
+    char label[MAX_LABEL_LEN];
 
 }instruction_word;
 
@@ -113,8 +113,9 @@ char *get_label(char *token);
 void get_string(const char *parameters);
 int is_string_decleration(const char *data_values);
 int is_character_declaration(const char *operand);
-/*instruction related functions */
 
+/*instruction related functions */
+unsigned int get_operand_data(char *parameter);
 int get_command_code(const char *token);
 void get_command(int command_code, const char *parameters_string);
 void is_operand_match(operand_type operand_type, int type);
@@ -122,7 +123,7 @@ int is_prototype_match(int command_type, int param1_type, int param2_type);
 void get_operand_type(const char *operand,  int *operand_type);
 int is_register_requests(const char *reg);
 unsigned int get_register(char *register_string);
-void get_command_parameters(int command_code,const char *parameters_string, char* source_parameter,char* destination_parameter);
+void get_command_parameters(int command_code, const char *parameters_string, char **first_parameter, char **second_parameter);
 void put_instruction_in_image(int code, int source_type, int destination_type, char *destination_operand, char * source_operand);
 void put_instruction_values_in_image(int type, int type_1, char *parameter, char *parameter_1);
 /*----------implementation of the generic lookup table for symbols------------*/
