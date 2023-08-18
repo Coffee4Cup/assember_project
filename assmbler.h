@@ -30,18 +30,37 @@ typedef struct
     int symbol_type;
 }symbol;
 
-typedef struct
-{/*represents a word in memory */
+typedef struct{/*represents a word in memory */
     unsigned word : 12;
-}word;
+}memory_word;
 typedef struct
-{/*represents instruction word*/
+{/*represents the value of instruction of type Absolute or Relocatable*/
     unsigned ARE : 2;
     unsigned opcode : 4;
     unsigned dest_operand :3;
     unsigned src_operand :3;
+}instruction_signature;
+/*represent an ab*/
+typedef struct{
+    unsigned ARE : 2;
+    unsigned value: 10;
+}instruction_absolute_value;
+
+typedef struct{
+    unsigned ARE : 2;
+    unsigned source_register: 5;
+    unsigned destination_register: 5;
+}instruction_register_value;
+/*represent an instruction word or a value passed to an instruction as a data type or refrence*/
+typedef union {
+
+    instruction_signature signature;
+    instruction_absolute_value data_value;
+    instruction_register_value reg_value;
+    char *label;
 
 }instruction_word;
+
 typedef struct
 {/*represent the possible types of elements a given operand can be for a given function*/
     /*each of these is a flag to receive in the prototype struct */
@@ -64,9 +83,12 @@ enum commend_types
     LEA, INC, DEC, JMP, BNE, RED,
     PRN, JSR, RTS, STOP, NOT_OPCODE
 };
+enum ARE
+{
+    Absolute, External, Relocatable
+};
 enum parameter_address_types{IMMEDIATE_ADD = 1, DIR_ADD = 3, DIR_REGISTER_ADD = 5, NOT_ADD = 0};
 enum symbol_type {DATA_TYPE, COMMEND_TYPE};
-enum {NOT_VALID, VALID};
 enum {FALSE, TRUE};
 
 /*-------- main functions ------------*/
@@ -74,33 +96,41 @@ void assemble(FILE *file);
 int first_pass(void);
 int second_pass(void);
 
-/*---------parsing functions-----------*/
+/**---------parsing functions-----------**/
 
+/*label related functions*/
 int is_label_decleration(const char *token);
-char *get_label(char *token);
+int is_valid_label(const char *token);
 
+/*data related functions*/
+
+int is_data(const char *data);
 int data_value_is_valid(int value);
 int get_data_type(const char *token);
 void get_data(const char *data_value_str);
 void put_data_in_image(int value);
-
-
+char *get_label(char *token);
 void get_string(const char *parameters);
-int is_string(const char *data_values);
-int get_commend(const char *token);
-void get_command_parameters(int command_type,const char *token);
+int is_string_decleration(const char *data_values);
+int is_character_declaration(const char *operand);
+/*instruction related functions */
 
+int get_command_code(const char *token);
+void get_command(int command_code, const char *parameters_string);
+void is_operand_match(operand_type operand_type, int type);
+int is_prototype_match(int command_type, int param1_type, int param2_type);
+void get_operand_type(const char *operand,  int *operand_type);
+int is_register_requests(const char *reg);
+unsigned int get_register(char *register_string);
+void get_command_parameters(int command_code,const char *parameters_string, char* source_parameter,char* destination_parameter);
+void put_instruction_in_image(int code, int source_type, int destination_type, char *destination_operand, char * source_operand);
+void put_instruction_values_in_image(int type, int type_1, char *parameter, char *parameter_1);
 /*----------implementation of the generic lookup table for symbols------------*/
-
-/*note: I tied to use the lookup table example from the book and implement a generic type of it*/
+    /*note: I tied to use the lookup table example from the book and implement a generic type of it*/
 struct nlist *symbol_lookup(char *label);
 struct nlist *symbol_install(symbol *data);
 
-void is_operand_match(operand_type operand_type, int type);
-void is_prototype_match(int command_type, int param1_type, int param2_type);
-void get_operand_type(const char *operand,  int *operand_type);
-int is_data(const char *data);
-int is_register(const char *reg);
 
-#endif /*ASSMBLER_ASSMBLER_H*/
+
+#endif
 

@@ -1,23 +1,16 @@
-//
-// Created by itay8 on 17/08/2023.
-//
-
 #include "assmbler.h"
-#include "assmbler.h"  // You should include your own header file here
 #define SKIP_WHITE_SPACE(A) while((A) != NULL && *(A) != '\0' && (*(A) == ' ' || *(A) == '\t')) (A)++;
-/*copy a word and changes the last char to be end of line char, for the cases when <word><,>, this copy only <word>*/
+/*copy a word and changes the last char to be an end-of-line char, for the cases when <word><,>, this copy only <word>*/
+
 #define PUT_WORD(A,B) while((B) != NULL && *(B) != '\0' &&  *(B) != '\t' && *(B) != ' ' && *(B) != ',' ) \
        *(A)++ = *(B)++;                                                                                           \
 *(A) ='\0';
 
-/* Add constant definitions for your opcode and data types */
-
-/* Add your struct definitions here */
 
 static int ic = 0;
 static int dc = 0;
 static struct nlist *symbol_table[TAB_SIZE];
-static word word_image[TAB_SIZE];
+static memory_word word_image[TAB_SIZE];
 static instruction_word instruction_image[TAB_SIZE];
 static int valid_file;
 static int line_count;
@@ -30,10 +23,11 @@ void assemble(FILE *file) {
 }
 
 int first_pass() {
-    valid_file = 1;  // Initialize valid_file to TRUE
-    line_count = 1;  // Initialize line_count
 
-    int data_type, command_type;
+    valid_file = TRUE;
+    line_count = 1;
+
+    int data_type, command_code;
     char *token, line[MAX_LINE_LEN];
 
     symbol temp_symbol; /*temporary symbol struct that holds values for a symbol entry later*/
@@ -65,15 +59,17 @@ int first_pass() {
                     get_string(token);
                     break;
                 case (ENTRY):
-                    break; /* @todo add here rest of the cases for entry and extern */
+                    break;
             }
-        } else if ((command_type = get_commend(token)) != NOT_OPCODE) {/* If the token is a command */
+        } else if ((command_code = get_command_code(token)) != NOT_OPCODE) {/* If the token is a command */
 
+            /*saves the type of level and the address*/
             temp_symbol.symbol_type = COMMEND_TYPE;
             temp_symbol.memory_address = ic;
 
-            token = strtok(NULL, " \t\n"); /* Takes the rest of the line as a parameter for the data type */
-            get_command_parameters(command_type, token);
+            /*install instruction in the instruction image*/
+            token = strtok(NULL, "\n"); /* Takes the rest of the line as a parameter for the data type */
+            get_command(command_code, token);
         }
 
         if (is_symbol == TRUE) {
@@ -82,82 +78,83 @@ int first_pass() {
 
             if (symbol_lookup(temp_symbol.label) != NULL) {
                 /* There is already a symbol with that label */
-                valid_file = NOT_VALID;
-                printf("ERROR: the symbol \"%s\" is defined more than once at line number %d\n",
-                       temp_symbol.label, line_count);
+                valid_file = FALSE;
+                printf("ERROR: the symbol \"%s\" is defined more than once at line number %d\n",temp_symbol.label, line_count);
             }
 
-            if (symbol_install(&temp_symbol) == NULL) {
-                valid_file = NOT_VALID;
-                printf("ERROR: failed to install the symbol \"%s\" at line number %d\n",
-                       temp_symbol.label, line_count);
+            if (symbol_install(&temp_symbol) == NULL)
+            {
+                valid_file = FALSE;
+                printf("ERROR: failed to install the symbol \"%s\" at line number %d\n",temp_symbol.label, line_count);
             }
-            is_symbol = FALSE;
+            is_symbol = FALSE;/*reset the flag of the symbol*/
             free(temp_symbol.label);
         }
 
         line_count++;
-        is_symbol = FALSE; /* Reset the symbol's reading flag */
     }
 
     return valid_file;
 }
 
+/***
+ * checks if a given string could be a valid label name.
+ * */
+int is_valid_label(const char *token) {
 
-int is_label(const char *token) {
-    char *label_ptr;
-
-
-    if (get_commend(token) != NOT_OPCODE || !isalpha(*token)) {
+    if (get_command_code(token) != NOT_OPCODE || !isalpha(*token))
         return FALSE;
-    }
 
-    label_ptr = (char*)token;
-    while (isalnum(*++label_ptr)) {
-        // Iterate through the characters to check if they're alphanumeric
-    }
+    while (isalnum(*++token));
 
-    if (*label_ptr != '\0') {
-        return FALSE;  // Return FALSE if the label contains non-alphanumeric characters
-    }
+    if (*token != '\0')
+        return FALSE;
 
-    return TRUE;  // Return TRUE if the label is a valid label
+    return TRUE;
 }
 
 
 
 int is_label_decleration(const char *token) {
+
     return (strlen(token) >= 2 && token[strlen(token) - 1] == ':');
 }
-
-char *get_label(char *token) {
+/*takes a token that represents a string of a label, checks if the token is valid as label and returns */
+char *get_label(char *token)
+{
     char *label;
+    char *label_ptr;
     label =  malloc(sizeof(char) * MAX_LABEL_LEN);
 
-    if (label == NULL) {
+    if (label == NULL)
+    {
         printf("ERROR: Memory allocation failed for label in line %d.\n", line_count);
         valid_file = FALSE;
-    }
-
-    char *label_ptr = label;
-    PUT_WORD(label_ptr, token);
-
-    if (is_label_decleration(label)) {
-        label[strlen(label) - 1] = '\0';
-    }
-
-    if (get_commend(label) != NOT_OPCODE) {
-        valid_file = NOT_VALID;
-        printf("ERROR: the label %s with invalid name at line %d, can't use command keyword as label\n",
-               label, line_count);
-        free(label); // Free the allocated memory before returning NULL
         return NULL;
     }
 
-    if (!isalpha(*label)) {
-        valid_file = NOT_VALID;
+    label_ptr = label;
+    PUT_WORD(label_ptr, token);
+
+    if (is_label_decleration(label))
+        label[strlen(label) - 1] = '\0';
+    else
+        label[strlen(label)] = '\0';
+
+    if (get_command_code(label) != NOT_OPCODE)
+    {
+        valid_file = FALSE;
+        printf("ERROR: the label %s with invalid name at line %d, can't use command keyword as label\n",
+           label, line_count);
+        valid_file = FALSE;
+        free(label);
+        return NULL;
+    }
+    else if(!isalpha(*label))
+    {
+        valid_file = FALSE;
         printf("ERROR: the label %s with invalid name at line %d, can't start label with non-letter character\n",label, line_count);
-        free(label); // Free the allocated memory before returning NULL
+        free(label);
         return NULL;
     }
 
@@ -165,7 +162,7 @@ char *get_label(char *token) {
     while (isalnum(*++label_ptr));
 
     if (*label_ptr != '\0') {
-        valid_file = NOT_VALID;
+        valid_file = FALSE;
         printf("ERROR: the label %s with invalid name at line %d, can't have label with non-letter or digit character\n",
                label, line_count);
         free(label); // Free the allocated memory before returning NULL
@@ -175,9 +172,136 @@ char *get_label(char *token) {
     return label;
 }
 
-int get_commend(const char *token) {
+
+
+void put_instruction_in_image(int code, int source_type, int destination_type, char *destination_parameter, char * source_parameter)
+{
+    instruction_image[ic].signature.ARE = Absolute;
+    instruction_image[ic].signature.opcode = code;
+    instruction_image[ic].signature.src_operand = source_type;
+    instruction_image[ic].signature.dest_operand = destination_type;
+    ic++;
+    put_instruction_values_in_image(source_type, destination_type, source_parameter, destination_parameter);
+
+}
+
+
+unsigned int get_operand_data(char *parameter);
+
+int is_10bit_number(char *operand);
+
+/*puts the instruction in the image of the instructions. assumes that the parameter types are valid and checks the values of the parameter for the claimed type given */
+void put_instruction_values_in_image(int source_type, int destination_type, char *destination_parameter, char * source_parameter) {
+
+    if (source_type != NOT_ADD) {
+        if (source_type == DIR_REGISTER_ADD) {
+            instruction_image[ic].reg_value.source_register = get_register(source_parameter);
+            instruction_image[ic].reg_value.ARE = Absolute;
+
+            if (destination_type == DIR_REGISTER_ADD) {/*if both the source and the destination are registers*/
+                instruction_image[ic].reg_value.destination_register = get_register(destination_parameter);
+                instruction_image[ic].reg_value.ARE = Absolute;
+            }
+            ic++;
+            return;
+        } else if (source_type == IMMEDIATE_ADD) {/*if the source_type is a data value (like 12 or 'a')*/
+            instruction_image[ic].data_value.value = get_operand_data(source_parameter);/*checks and returns a value of a single char for 10 bit word (2 bits for ARE or taken for this data)*/
+            instruction_image[ic].data_value.ARE = Absolute;
+        } else/*destination_type == DIR_ADD*/
+        {/*if the address is a relocatable address for a label*/
+            instruction_image[ic].label = strdup(destination_parameter);/*saves thew label of the symbol for later implementation in the secound pass*/
+        }
+        ic++;
+    }
+
+    if (destination_type != NOT_ADD) {
+        if (destination_type == DIR_REGISTER_ADD) {
+            instruction_image[ic].reg_value.destination_register = get_register(destination_parameter);
+            instruction_image[ic].reg_value.ARE = Absolute;
+        } else if (destination_type == IMMEDIATE_ADD) {/*if the source_type is a data value (like 12 or 'a')*/
+            instruction_image[ic].data_value.value = get_operand_data(destination_parameter);
+            instruction_image[ic].data_value.ARE = Absolute;
+            ic++;
+        } else/*destination_type == DIR_ADD*/
+        {/*if the address is a relocatable address for a label*/
+            instruction_image[ic].label = strdup(destination_parameter);/*saves thew label of the symbol for later implementation in the secound pass*/
+        }
+    }
+    ic++;
+}
+/* return the value of a single character or a number given to a function, checks if their values can fit inside a 10 bit word
+ * if the values are not valid return -1 */
+unsigned int get_operand_data(char *operand) {
+    if (is_character_declaration(operand)) /* if it is a single character with syntax: <'><char><'> */
+        return *(operand + 1); /* return the char itself */
+    else if (is_10bit_number(operand))
+        return atoi(operand);
+    else {
+        printf("ERROR: invalid immediate parameter for function at line %d", line_count);
+        valid_file = FALSE; // Assuming valid_file is a global flag variable
+    }
+    return 0;
+}
+int is_character_declaration(const char *operand) {
+    return (strlen(operand) == 3 &&
+            operand[0] == '\'' &&
+            operand[2] == '\'' &&
+            isprint(operand[1]));
+}
+
+/*checks if the operand is a 10 bit number that will fit inside a parameter word of a function */
+int is_10bit_number(char *operand) {
+    char *endptr;
+    long number = strtol(operand, &endptr, 10); /*Convert string to long integer*/
+
+    /*Check if the conversion was successful and the entire operand was consumed*/
+    if (*endptr == '\0' && number >= -512 && number <= 511) {
+        return 1; /*Return 1 if it's a valid 10-bit number*/
+    }
+
+    return 0; /*Return 0 if it's not a valid 10-bit number*/
+}
+
+/*get_register checks if register_string is in format: <@r><number><end-of-line> and checks if the number is a valid number of a register. return -1 if the string is not valid and the number of register if valid */
+unsigned int get_register(char *register_string) {
+    int register_number = -1;
+    if(sscanf(register_string, "@r%d", &register_number) == 0)
+    {
+        printf("ERROR: unknown register type at line %d", line_count);
+        valid_file = FALSE;
+    }
+    if(register_number < 1 || register_number > 8)
+    {
+        printf("ERROR: unknown register number at line %d", line_count);
+        valid_file = FALSE;
+    }
+    return register_number;
+
+}
+
+/*handles the process of the parameters from the given string, and using the other functions check their validity and put the instruction in the image*/
+void get_command(int command_code, const char *parameters_string)
+{
+    char* source_parameter = malloc(MAX_LINE_LEN);
+    char*  destination_parameter = malloc(MAX_LINE_LEN);
+    int source_type, destination_type;
+    get_command_parameters(command_code, parameters_string, source_parameter, destination_parameter);
+    get_operand_type(source_parameter, &source_type);
+    get_operand_type(destination_parameter, &destination_type);
+
+    if(is_prototype_match(command_code, source_type, destination_type))
+    {
+        put_instruction_in_image(command_code, source_type, destination_type, source_parameter, destination_parameter);
+
+
+    }
+}
+/*return a number value representing the command that was writen in the source file*/
+int get_command_code(const char *token)
+{
     int i;
-    static const char *commend_list[] = {
+    static const char *commend_list[] =
+            {
             "mov", "cmp", "add", "sub", "not", "clr", "lea",
             "inc", "dec", "jmp", "bne", "red", "prn", "jsr",
             "rts", "stop"
@@ -185,15 +309,15 @@ int get_commend(const char *token) {
 
     for (i = 0; i < sizeof(commend_list) / sizeof(commend_list[0]); i++) {
         if (strcmp(token, commend_list[i]) == 0) {
-            return i;  /*Return the corresponding opcode value*/
+            return i;  /*Return the corresponding command code value*/
         }
     }
 
-    return NOT_OPCODE;  /*Return NOT_OPCODE if the token is not a recognized opcode*/
+    return NOT_OPCODE;  /*Returns if the token is not a recognized command keyword*/
 }
 
 
-int is_string(const char *data_values) {
+int is_string_decleration(const char *data_values) {
     return ((strlen(data_values) >= 3) &&
             (data_values[strlen(data_values) - 1] == '\"') &&
             (data_values[0] == '\"'));  // Check if the string starts and ends with double quotes
@@ -227,7 +351,7 @@ void put_data_in_image(int value) {
         word_image[dc++].word = value;  /*Store the value in the image*/
     } else {
         printf("ERROR: no more space in assembler's data image at line: %d\n", line_count);
-        valid_file = NOT_VALID;
+        valid_file = FALSE;
     }
 }
 
@@ -242,7 +366,7 @@ int get_data_type(const char *token) {
             }
         }
         printf("ERROR: unknown data type at line %d\n", line_count);
-        valid_file = NOT_VALID;
+        valid_file = FALSE;
     }
 
     return NOT_DATA_TYPE;  /*Return NOT_DATA_TYPE if the token is not a recognized data type*/
@@ -261,55 +385,51 @@ struct nlist *symbol_lookup(char *label)
     return lookup(symbol_table, label, TAB_SIZE);
 }
 
+/*gets a string from the file that holds the parameter or parameters of a command */
+void get_command_parameters(int command_code,const char *parameters_string, char* first_parameter, char* second_parameter){
 
-void get_command_parameters(int command_type, const char *parameters) {
-    char *param1 = (char *)malloc(MAX_LINE_LEN * sizeof(char));
-    char *param2 = (char *)malloc(MAX_LINE_LEN * sizeof(char));
-    int param1_type = 0, param2_type = 0;
+    int second_parameter_type = NOT_OPCODE, first_parameter_type = NOT_OPCODE;
     char *param_temp_ptr;
 
-    if(parameters == NULL)
-        return;
 
-    SKIP_WHITE_SPACE(parameters);
-    param_temp_ptr = param1;
-    PUT_WORD(param1, parameters);
-    param1 = param_temp_ptr;
-    get_operand_type(param1, &param1_type);
+    SKIP_WHITE_SPACE(parameters_string);
+    param_temp_ptr = second_parameter;
+    PUT_WORD(second_parameter, parameters_string);
+    second_parameter = param_temp_ptr;
+    get_operand_type(second_parameter, &second_parameter_type);
 
-    SKIP_WHITE_SPACE(parameters);
-    if (parameters != NULL && *parameters == ',') {
-        parameters++;  // Move past the comma
-        SKIP_WHITE_SPACE(parameters);
-        param_temp_ptr = param2;
-        PUT_WORD(param2, parameters);
-        param2 = param_temp_ptr;
-        get_operand_type(param2, &param2_type);
+    SKIP_WHITE_SPACE(parameters_string);
+
+    if (parameters_string != NULL && *parameters_string == ',') {
+        parameters_string++;
+        SKIP_WHITE_SPACE(parameters_string);
+        param_temp_ptr = first_parameter;
+        PUT_WORD(first_parameter, parameters_string);
+        first_parameter = param_temp_ptr;
+        get_operand_type(first_parameter, &first_parameter_type);
     }
-
-    is_prototype_match(command_type, param1_type, param2_type);
 }
 
 void get_operand_type(const char *operand, int *operand_type) {
-    if (is_string(operand) || is_data(operand)) {
+    if (is_string_decleration(operand) || is_data(operand)) {
         *operand_type = IMMEDIATE_ADD;
-    } else if (is_label(operand)) {
+    } else if (is_valid_label(operand)) {
         *operand_type = DIR_ADD;
-    } else if (is_register(operand)) {
+    } else if (is_register_requests(operand)) {
         *operand_type = DIR_REGISTER_ADD;
     } else {
         *operand_type = NOT_ADD;
-        printf("ERROR: Operand at line %d is not a known operand type or not valid.\n", line_count);
-        valid_file = NOT_VALID;
+        printf("ERROR: Operand \"%s\" at line %d is not a known operand type or not valid.\n",operand, line_count);
+        valid_file = FALSE;
     }
 }
 
 
-int is_register(const char *operand) {
+int is_register_requests(const char *operand) {
     return (operand != NULL && *operand == '@'); /*Check if operand starts with '@'*/
 }
 
-/* Function to parse and handle a single data value */
+/* Function to parse and handle  */
 void get_data(const char *data_values) {
     int data_value;
     char *line_ptr, *end_ptr;
@@ -325,65 +445,63 @@ void get_data(const char *data_values) {
 
         /* Convert the next data value */
         data_value = strtol(line_ptr, &end_ptr, 10);
+        SKIP_WHITE_SPACE(end_ptr);/*skips the space between the end of the number and the next comma*/
 
         /* Check if a valid number was parsed */
         if (line_ptr == end_ptr) {
-            printf("ERROR: No valid data value found at line %d.\n", line_count);
-            valid_file = NOT_VALID;
+            printf("ERROR: No valid data value found at line start of initialization at line %d.\n", line_count);
+            valid_file = FALSE;
             break;
         }
 
-        /* Check for non-digit characters */
-        if (ispunct(*line_ptr) && *line_ptr != ',') {
+        /*Check for non-digit characters, a print  */
+        if (*end_ptr == ',')
+            end_ptr++;
+        else if(*end_ptr != '\0')
+        {/*it is not a comma and not the end of the data_values,
+ * and we skipped spaces, so it must be non-valid syntax for data*/
             printf("ERROR: Wrong syntax for data values found at line %d.\n", line_count);
-            valid_file = NOT_VALID;
-            break;
+            valid_file = FALSE;
+           break;
         }
 
         /* Check if the integer can be stored in a 12-bit word */
         if (!data_value_is_valid(data_value)) {
             printf("ERROR: Data value out of range at line %d.\n", line_count);
-            valid_file = NOT_VALID;
+            valid_file = FALSE;
             break;
-        } else {
+        } else
+        {
             /* Store the valid data value in the image */
             put_data_in_image(data_value);
         }
-
-        /* Move to the next character after the parsed number */
         line_ptr = end_ptr;
 
-        /* Check for a comma and prepare for the next iteration */
-        if (*line_ptr == ',') {
-            line_ptr++;  /* Move past the comma */
-        } else if (*line_ptr) {
-            printf("ERROR: Unexpected character found at line %d.\n", line_count);
-            valid_file = NOT_VALID;
-            break;
-        }
     }
 }
 
 /* Gets a string that represents the value of the string data type and stores it in the image of declarations */
-void get_string(const char *string_value) {
+void get_string(const char *string_value)
+{
+
     SKIP_WHITE_SPACE(string_value);
-    if (is_string(string_value)) {
-        while (isprint(*++string_value) && *string_value != '\"') {
-            word_image[(dc)++].word = *(unsigned char *)string_value;
-        }
+    if (is_string_decleration(string_value))
+    {
+        while (isprint(*++string_value) && *string_value != '\"')
+            put_data_in_image(*string_value);
         if (*string_value != '\"') {
             printf("ERROR: the character: %c is not valid for string an argument at line %d\n",*string_value, line_count);
-            valid_file = NOT_VALID;
+            valid_file = FALSE;
         }
         word_image[(dc)++].word = '\0'; /* Appends "end-of-line" indicator */
     } else {
         printf("ERROR: the string argument: \"%s\" is not in the correct string format: \"<string>\" at line %d\n",string_value, line_count);
-        valid_file = NOT_VALID;
+        valid_file = FALSE;
     }
 }
 
 
-void is_prototype_match(int command_type, int param1_type, int param2_type) {
+int is_prototype_match(int command_code, int source_parameter_type, int destination_parameter_type) {
     const static prototype prototypes[] = {
             {{TRUE,  TRUE,  TRUE},  {FALSE, TRUE,  TRUE}},/* mov */
             {{TRUE,  TRUE,  TRUE},  {TRUE,  TRUE,  TRUE}},/* cmp */
@@ -402,26 +520,27 @@ void is_prototype_match(int command_type, int param1_type, int param2_type) {
             {{FALSE, FALSE, FALSE}, {FALSE, FALSE, FALSE}},/* rts */
             {{FALSE, FALSE, FALSE}, {FALSE, FALSE, FALSE}}/* stop */
     };
-    if (command_type >= 0 && command_type < sizeof(prototypes) / sizeof(prototypes[0]))
+    if (command_code >= 0 && command_code < sizeof(prototypes) / sizeof(prototypes[0]))
     {
-        if ((MOV <= command_type && command_type <= SUB || command_type == LEA) && param1_type &&
-            param2_type)/*if the command is a two-parameter type*/
+        if ((MOV <= command_code && command_code <= SUB || command_code == LEA) && source_parameter_type &&
+            destination_parameter_type)/*if the command is a two-parameter type*/
         {
-            is_operand_match(prototypes[command_type].src_operand, param1_type);
-            is_operand_match(prototypes[command_type].dest_operand, param2_type);
+            is_operand_match(prototypes[command_code].src_operand, source_parameter_type);
+            is_operand_match(prototypes[command_code].dest_operand, destination_parameter_type);
         }
-        else if ((command_type == NOT || command_type == CLR || INC <= command_type && command_type <= JSR) &&
-                 param1_type && !param2_type)
+        else if ((command_code == NOT || command_code == CLR || INC <= command_code && command_code <= JSR) &&
+                 source_parameter_type && !destination_parameter_type)
         {
-            is_operand_match(prototypes[command_type].dest_operand, param1_type);
+            is_operand_match(prototypes[command_code].dest_operand, source_parameter_type);
         }
-        else if (!((command_type == RTS || command_type == STOP) && !param1_type && !param2_type))
+        else if (!((command_code == RTS || command_code == STOP) && !source_parameter_type && !destination_parameter_type))
         {/*if the */
             printf("ERROR: The command doesn't match the number of parameters given in line %d\n", line_count);
-            valid_file = NOT_VALID;
+            valid_file = FALSE;
+            return FALSE;
         }
-
     }
+    return TRUE;
 }
 
 
@@ -430,6 +549,6 @@ void is_operand_match(operand_type operand_type, int type) {
           type == DIR_ADD && operand_type.Direct_address ||
           type == DIR_REGISTER_ADD && operand_type.dir_register_address)) {
         printf("ERROR: Mismatch between parameter type accepted and operand type at line %d.\n", line_count);
-        valid_file = NOT_VALID;
+        valid_file = FALSE;
     }
 }
