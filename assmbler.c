@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include "assmbler.h"
 #define SKIP_WHITE_SPACE(A) while((A) != NULL && *(A) != '\0' && (*(A) == ' ' || *(A) == '\t')) (A)++;
 /*copy a word and changes the last char to be an end-of-line char, for the cases when <word><,>, this copy only <word>*/
@@ -7,6 +8,7 @@
 *(A) ='\0';
 
 
+#define word_size 12
 static int ic = 0;
 static int dc = 0;
 static struct nlist *symbol_table[TAB_SIZE];
@@ -19,7 +21,30 @@ static FILE *input_file;
 void assemble(FILE *file) {
     input_file = file;
     first_pass();
+    print_instruction_image();
     /*second_pass();*/
+}
+void print_word_image(){
+
+}
+
+void print_absolute_value(instruction_absolute_value inst) {
+
+    unsigned int value = (inst.value << 2) | inst.ARE;
+
+    int i;
+    for (i = 11; i >= 0; i--) {
+        printf("%d", (value >> i) & 1);
+    }
+    printf("\n");
+}
+void print_word(unsigned int value) {
+
+    int i;
+    for (i = 11; i >= 0; i--) {
+        printf("%d", (value >> i) & 1);
+    }
+    printf("\n");
 }
 void reset_first_pass_values() {
     ic = 0;
@@ -30,6 +55,67 @@ void reset_first_pass_values() {
     memset(symbol_table, 0, sizeof(symbol_table));
     memset(word_image, 0, sizeof(word_image));
     memset(instruction_image, 0, sizeof(instruction_image));
+}
+
+
+void print_instruction(instruction_signature inst) {
+    int i;
+    unsigned int value = (inst.src_operand << 9) | (inst.opcode << 5) | (inst.dest_operand << 2) | inst.ARE;
+
+    for (i = word_size - 1; i >= 0; i--) {
+        printf("%d", (value >> i) & 1);
+    }
+    printf("\n");
+}
+void printBinaryRegister(instruction_register_value inst) {
+    int i;
+    unsigned int value = (inst.source_register << 7) | (inst.destination_register << 2) | inst.ARE;
+
+    for (i = word_size - 1; i >= 0; i--) {
+        printf("%d", (value >> i) & 1);
+    }
+    printf("\n");
+}
+
+
+
+void print_instruction_image() {
+    int i = 0;
+    int param_lines_num = 0; /* the number of parameter lines from the command line */
+    int first_param_type = instruction_image[i].signature.dest_operand;
+    while (i < ic) {
+        print_instruction(instruction_image[i].signature);
+
+        fflush(stdout);
+        i += (print_parameters(i, instruction_image[i].signature) + 1);/*prints the parameters and return the number of lines it took*/
+        fflush(stdout);
+    }
+}
+
+int print_parameters(int i, instruction_signature signature) {
+
+    int num_lines = 2;
+    if(signature.src_operand == DIR_REGISTER_ADD && signature.dest_operand == DIR_REGISTER_ADD) {
+        printBinaryRegister(instruction_image[i + 1].reg_value);
+    return 0;
+    }
+    if(signature.src_operand == DIR_REGISTER_ADD)
+        printBinaryRegister(instruction_image[++i].reg_value);
+    else if(signature.src_operand == DIR_ADD)
+        printf("%s\n", instruction_image[++i].label);
+    else if(signature.src_operand == IMMEDIATE_ADD)
+        print_absolute_value(instruction_image[++i].data_value);
+    else
+        num_lines--;
+    if(signature.dest_operand == DIR_REGISTER_ADD)
+        printBinaryRegister(instruction_image[++i].reg_value);
+    else if(signature.dest_operand == DIR_ADD)
+        printf("%s\n", instruction_image[++i].label);
+    else if(signature.dest_operand == IMMEDIATE_ADD)
+        print_absolute_value(instruction_image[++i].data_value);
+    else
+        num_lines--;
+    return num_lines;
 }
 
 
@@ -89,13 +175,13 @@ int first_pass() {
             if (symbol_lookup(temp_symbol.label) != NULL) {
                 /* There is already a symbol with that label */
                 valid_file = FALSE;
-                printf("ERROR: the symbol \"%s\" is defined more than once at line number %d\n",temp_symbol.label, line_count);
+                printf("ERROR: the symbol \"%s\" is defined more than once at line number %d\n", temp_symbol.label,
+                       line_count);
             }
 
-            if (symbol_install(&temp_symbol) == NULL)
-            {
+            if (symbol_install(&temp_symbol) == NULL) {
                 valid_file = FALSE;
-                printf("ERROR: failed to install the symbol \"%s\" at line number %d\n",temp_symbol.label, line_count);
+                printf("ERROR: failed to install the symbol \"%s\" at line number %d\n", temp_symbol.label, line_count);
             }
             is_symbol = FALSE;/*reset the flag of the symbol*/
             free(temp_symbol.label);
@@ -103,7 +189,6 @@ int first_pass() {
 
         line_count++;
     }
-
     return valid_file;
 }
 
@@ -191,20 +276,28 @@ void put_instruction_in_image(int code, int source_type, int destination_type, c
     instruction_image[ic].signature.src_operand = source_type;
     instruction_image[ic].signature.dest_operand = destination_type;
     ic++;
-    put_instruction_values_in_image(source_type, destination_type, source_parameter, destination_parameter);
+    put_instruction_values_in_image(source_type, destination_type, destination_parameter, source_parameter);
 
 }
 
 
-unsigned int get_operand_data(char *parameter);
 
-int is_10bit_number(char *operand);
 
 /*puts the instruction in the image of the instructions. assumes that the parameter types are valid and checks the values of the parameter for the claimed type given */
 void put_instruction_values_in_image(int source_type, int destination_type, char *destination_parameter, char *source_parameter) {
     instruction_word inst_word;
 
-    if (source_type != NOT_ADD) {
+
+    if(source_type == DIR_REGISTER_ADD && destination_type == DIR_REGISTER_ADD)
+    {/*in case both parameters are a register type*/
+        inst_word.reg_value.source_register = get_register(source_parameter);
+        inst_word.reg_value.destination_register = get_register(destination_parameter);
+        inst_word.reg_value.ARE = Absolute;
+        instruction_image[ic] = inst_word;
+        ic++;
+        return;
+    }
+    if (source_type != NOT_ADD && source_parameter != NULL ) {
         if (source_type == DIR_REGISTER_ADD) {
             inst_word.reg_value.source_register = get_register(source_parameter);
             inst_word.reg_value.ARE = Absolute;
@@ -212,7 +305,7 @@ void put_instruction_values_in_image(int source_type, int destination_type, char
             inst_word.data_value.value = get_operand_data(source_parameter);
             inst_word.data_value.ARE = Absolute;
         } else if (source_type == DIR_ADD) {
-            inst_word.data_value.value = 0;  // Not using the value field for labels
+            inst_word.data_value.value = 0;
             inst_word.data_value.ARE = Relocatable;
             strncpy(inst_word.label, source_parameter, MAX_LABEL_LEN - 1);
             inst_word.label[MAX_LABEL_LEN - 1] = '\0';  // Ensure null-termination
@@ -221,7 +314,7 @@ void put_instruction_values_in_image(int source_type, int destination_type, char
         ic++;
     }
 
-    if (destination_type != NOT_ADD) {
+    if (destination_type != NOT_ADD && destination_parameter != NULL) {
         if (destination_type == DIR_REGISTER_ADD) {
             inst_word.reg_value.destination_register = get_register(destination_parameter);
             inst_word.reg_value.ARE = Absolute;
@@ -231,10 +324,9 @@ void put_instruction_values_in_image(int source_type, int destination_type, char
             instruction_image[ic] = inst_word;
             ic++;
         } else if (destination_type == DIR_ADD) {
-            inst_word.data_value.value = 0;  // Not using the value field for labels
             inst_word.data_value.ARE = Relocatable;
-            strncpy(inst_word.label, destination_parameter, MAX_LABEL_LEN - 1);
-            inst_word.label[MAX_LABEL_LEN - 1] = '\0';  // Ensure null-termination
+            strncpy(inst_word.label, destination_parameter, strlen(destination_parameter) + 1);
+            inst_word.label[strlen(destination_parameter) + 1] = '\0';
             instruction_image[ic] = inst_word;
             ic++;
         }
@@ -293,17 +385,20 @@ unsigned int get_register(char *register_string) {
 /*handles the process of the parameters from the given string, and using the other functions check their validity and put the instruction in the image*/
 void get_command(int command_code, const char *parameters_string)
 {
-    char* source_parameter = malloc(MAX_LINE_LEN);
-    char*  destination_parameter = malloc(MAX_LINE_LEN);
-    int source_type, destination_type;
-    get_command_parameters(command_code, parameters_string, &source_parameter, &destination_parameter);
+    char* first_parameter = malloc(MAX_LINE_LEN);
+    char*  second_parameter = malloc(MAX_LINE_LEN);
+    int first_type, second_type;
+    get_command_parameters(command_code, parameters_string, &first_parameter, &second_parameter);
 
-        get_operand_type(source_parameter, &source_type);
-        get_operand_type(destination_parameter, &destination_type);
+        get_operand_type(first_parameter, &first_type);
+        get_operand_type(second_parameter, &second_type);
 
-    if(is_prototype_match(command_code, source_type, destination_type))
+    if(is_prototype_match(command_code, first_type, second_type))
     {
-        put_instruction_in_image(command_code, source_type, destination_type, source_parameter, destination_parameter);
+        if(!second_type)
+            put_instruction_in_image(command_code, 0,first_type , first_parameter, 0);
+        else
+             put_instruction_in_image(command_code, first_type, second_type, second_parameter ,first_parameter);
 
 
     }

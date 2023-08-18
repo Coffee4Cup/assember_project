@@ -42,14 +42,14 @@ typedef struct
 }instruction_signature;
 /*represent an ab*/
 typedef struct{
-    unsigned ARE : 2;
     unsigned value: 10;
+    unsigned ARE : 2;
 }instruction_absolute_value;
 
 typedef struct{
-    unsigned ARE : 2;
     unsigned source_register: 5;
     unsigned destination_register: 5;
+    unsigned ARE : 2;
 }instruction_register_value;
 /*represent an instruction word or a value passed to an instruction as a data type or refrence*/
 typedef union {
@@ -98,9 +98,17 @@ int second_pass(void);
 
 /**---------parsing functions-----------**/
 
+
+/*testing funcitons*/
+int print_parameters(int i, instruction_signature signature);
+int get_instruction_lines(instruction_signature signature);
+void print_instruction_image();
+
 /*label related functions*/
 int is_label_decleration(const char *token);
 int is_valid_label(const char *token);
+unsigned int get_operand_data(char *parameter);
+
 
 /*data related functions*/
 
@@ -125,7 +133,9 @@ int is_register_requests(const char *reg);
 unsigned int get_register(char *register_string);
 void get_command_parameters(int command_code, const char *parameters_string, char **first_parameter, char **second_parameter);
 void put_instruction_in_image(int code, int source_type, int destination_type, char *destination_operand, char * source_operand);
-void put_instruction_values_in_image(int type, int type_1, char *parameter, char *parameter_1);
+void put_instruction_values_in_image(int source_type, int destination_type, char *destination_operand, char *source_operand);
+int is_10bit_number(char *operand);
+
 /*----------implementation of the generic lookup table for symbols------------*/
     /*note: I tied to use the lookup table example from the book and implement a generic type of it*/
 struct nlist *symbol_lookup(char *label);
