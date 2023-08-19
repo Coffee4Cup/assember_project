@@ -14,13 +14,7 @@ static unsigned int _hash(char *name, int hash_size) {
     return hashval % hash_size;
 }
 
-void *dup_data(void *data, size_t size) {
-    void *copy = malloc(size);
-    if (copy != NULL) {
-        memcpy(copy, data, size);
-    }
-    return copy;
-}
+typedef void *(*dup_func)(void *data);
 
 struct nlist *lookup(struct nlist *hashtab[], char *name, int hash_size) {
     struct nlist *np;
@@ -30,7 +24,7 @@ struct nlist *lookup(struct nlist *hashtab[], char *name, int hash_size) {
     return NULL;
 }
 
-struct nlist *install(struct nlist *hashtab[], char *name, void *data, int hash_size, size_t size) {
+struct nlist *install(struct nlist *hashtab[], char *name, void *data, int hash_size, dup_func duplicate) {
     struct nlist *np;
     unsigned int hashval;
 
@@ -45,7 +39,7 @@ struct nlist *install(struct nlist *hashtab[], char *name, void *data, int hash_
         free(np->data);
     }
 
-    np->data = dup_data(data, size);
+    np->data = duplicate(data);
 
     return np;
 }

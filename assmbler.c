@@ -492,16 +492,6 @@ int get_data_type(const char *token) {
 
 
 
-struct nlist *symbol_install(symbol *symbol_entry) {
-    return install(symbol_table, symbol_entry->label, symbol_entry, TAB_SIZE, sizeof(symbol_entry));
-
-}
-
-struct nlist *symbol_lookup(char *label)
-{
-    return lookup(symbol_table, label, TAB_SIZE);
-}
-
 /*gets a string from the file that holds the parameter or parameters of a command */
 void get_command_parameters(int command_code, const char *parameters_string, char **first_parameter, char **second_parameter) {
     int second_parameter_type = NOT_OPCODE, first_parameter_type = NOT_OPCODE;
@@ -538,10 +528,10 @@ void get_operand_type(const char *operand, int *operand_type) {
     }
 }
 
-
 int is_register_requests(const char *operand) {
     return (operand != NULL && *operand == '@'); /*Check if operand starts with '@'*/
 }
+
 
 /* Function to parse and handle  */
 void get_data(const char *data_values) {
@@ -665,4 +655,41 @@ void is_operand_match(operand_type operand_type, int type) {
         printf("ERROR: Mismatch between parameter type accepted and operand type at line %d.\n", line_count);
         valid_file = FALSE;
     }
+}
+
+struct nlist *symbol_install(symbol *symbol_entry) {
+    return install(symbol_table, symbol_entry->label, symbol_entry, TAB_SIZE, (dup_func) duplicate_symbol);
+
+}
+
+struct nlist *symbol_lookup(char *label)
+{
+    return lookup(symbol_table, label, TAB_SIZE);
+}
+
+
+symbol *duplicate_symbol(const symbol *original) {
+    if (original == NULL) {
+        return NULL;
+    }
+
+    symbol *new_symbol = (symbol *)malloc(sizeof(symbol));
+    if (new_symbol == NULL) {
+         /*Memory allocation failed*/
+        return NULL;
+    }
+
+    /*Duplicate the label*/
+    new_symbol->label = strdup(original->label);
+    if (new_symbol->label == NULL) {
+        /*Memory allocation for label failed*/
+        free(new_symbol);
+        return NULL;
+    }
+
+ /*   Copy other fields*/
+    new_symbol->memory_address = original->memory_address;
+    new_symbol->symbol_type = original->symbol_type;
+
+    return new_symbol;
 }

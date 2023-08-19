@@ -33,6 +33,7 @@ typedef struct
 typedef struct{/*represents a word in memory */
     unsigned word : 12;
 }memory_word;
+
 typedef struct
 {/*represents the value of instruction of type Absolute or Relocatable*/
     unsigned ARE : 2;
@@ -40,6 +41,7 @@ typedef struct
     unsigned dest_operand :3;
     unsigned src_operand :3;
 }instruction_signature;
+
 /*represent an ab*/
 typedef struct{
     unsigned value: 10;
@@ -51,6 +53,7 @@ typedef struct{
     unsigned destination_register: 5;
     unsigned ARE : 2;
 }instruction_register_value;
+
 /*represent an instruction word or a value passed to an instruction as a data type or refrence*/
 typedef union {
 
@@ -141,7 +144,7 @@ int is_10bit_number(char *operand);
     /*note: I tied to use the lookup table example from the book and implement a generic type of it*/
 struct nlist *symbol_lookup(char *label);
 struct nlist *symbol_install(symbol *data);
-
+symbol *duplicate_symbol(const symbol *original);
 
 
 #endif
