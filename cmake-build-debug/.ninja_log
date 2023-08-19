@@ -52,6 +52,8 @@
 145	263	7141541018269894	asmbler_2.exe	72e5f19099019a81
 6	283	7141541298563543	CMakeFiles/asmbler_2.dir/assmbler.c.obj	4e72fee1e1acb7ec
 284	1389	7141541307949396	asmbler_2.exe	72e5f19099019a81
+2	127	7141796876942432	CMakeFiles/asmbler_2.dir/main.c.obj	3f19d5869702b68b
+14	138	7141796877042295	CMakeFiles/asmbler_2.dir/macro.c.obj	545b589fcaca1400
 27	1542	7141687726074823	CMakeFiles/asmbler_2.dir/assmbler.c.obj	4e72fee1e1acb7ec
 4	1784	7141687728815371	CMakeFiles/asmbler_2.dir/main.c.obj	3f19d5869702b68b
 35	1788	7141687725803872	CMakeFiles/asmbler_2.dir/macro.c.obj	545b589fcaca1400
@@ -64,3 +66,7 @@
 15	153	7141741171164348	CMakeFiles/asmbler_2.dir/macro.c.obj	545b589fcaca1400
 9	223	7141741171868969	CMakeFiles/asmbler_2.dir/assmbler.c.obj	4e72fee1e1acb7ec
 224	629	7141741175755277	asmbler_2.exe	72e5f19099019a81
+3	137	7141797109216325	CMakeFiles/asmbler_2.dir/main.c.obj	3f19d5869702b68b
+22	150	7141797109371312	CMakeFiles/asmbler_2.dir/macro.c.obj	545b589fcaca1400
+12	217	7141797110026055	CMakeFiles/asmbler_2.dir/assmbler.c.obj	4e72fee1e1acb7ec
+217	314	7141797110978303	asmbler_2.exe	72e5f19099019a81
