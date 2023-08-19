@@ -13,7 +13,6 @@ static int valid_file;
 FILE *preprocess(FILE *output_file, FILE *input_file) {
 
     valid_file = TRUE;/*a flag for the validity of the file*/
-    printf("preprocessing here!\n");
 
     static enum flag {
         IN, OUT

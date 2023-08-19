@@ -17,45 +17,16 @@ static instruction_word instruction_image[TAB_SIZE];
 static int valid_file;
 static int line_count;
 static FILE *input_file;
+static char* file_name_base;
 
-void assemble(FILE *file) {
+
+void assemble(FILE *file, char *file_name) {
+    file_name_base = file_name;
     input_file = file;
     first_pass();
     print_instruction_image();
     print_word_image();
     /*second_pass();*/
-}
-void print_word_image(){
-    int i;
-    for(i = 0; i < dc ; i++)
-        print_memory_word(word_image[i].word);
-}
-void print_memory_word(unsigned int word) {
-
-
-    int i;
-    for (i = 11; i >= 0; i--) {
-        printf("%d", (word >> i) & 1);
-    }
-    printf("\n");
-}
-void print_absolute_value(instruction_absolute_value inst) {
-
-    unsigned int value = (inst.value << 2) | inst.ARE;
-
-    int i;
-    for (i = 11; i >= 0; i--) {
-        printf("%d", (value >> i) & 1);
-    }
-    printf("\n");
-}
-void print_word(unsigned int value) {
-
-    int i;
-    for (i = 11; i >= 0; i--) {
-        printf("%d", (value >> i) & 1);
-    }
-    printf("\n");
 }
 void reset_first_pass_values() {
     ic = 0;
@@ -67,68 +38,6 @@ void reset_first_pass_values() {
     memset(word_image, 0, sizeof(word_image));
     memset(instruction_image, 0, sizeof(instruction_image));
 }
-
-
-void print_instruction(instruction_signature inst) {
-    int i;
-    unsigned int value = (inst.src_operand << 9) | (inst.opcode << 5) | (inst.dest_operand << 2) | inst.ARE;
-
-    for (i = word_size - 1; i >= 0; i--) {
-        printf("%d", (value >> i) & 1);
-    }
-    printf("\n");
-}
-void printBinaryRegister(instruction_register_value inst) {
-    int i;
-    unsigned int value = (inst.source_register << 7) | (inst.destination_register << 2) | inst.ARE;
-
-    for (i = word_size - 1; i >= 0; i--) {
-        printf("%d", (value >> i) & 1);
-    }
-    printf("\n");
-}
-
-
-
-void print_instruction_image() {
-    int i = 0;
-    int param_lines_num = 0; /* the number of parameter lines from the command line */
-    int first_param_type = instruction_image[i].signature.dest_operand;
-    while (i < ic) {
-        print_instruction(instruction_image[i].signature);
-
-        fflush(stdout);
-        i += (print_parameters(i, instruction_image[i].signature) + 1);/*prints the parameters and return the number of lines it took*/
-        fflush(stdout);
-    }
-}
-
-int print_parameters(int i, instruction_signature signature) {
-
-    int num_lines = 2;
-    if(signature.src_operand == DIR_REGISTER_ADD && signature.dest_operand == DIR_REGISTER_ADD) {
-        printBinaryRegister(instruction_image[i + 1].reg_value);
-    return 0;
-    }
-    if(signature.src_operand == DIR_REGISTER_ADD)
-        printBinaryRegister(instruction_image[++i].reg_value);
-    else if(signature.src_operand == DIR_ADD)
-        printf("%s\n", instruction_image[++i].label);
-    else if(signature.src_operand == IMMEDIATE_ADD)
-        print_absolute_value(instruction_image[++i].data_value);
-    else
-        num_lines--;
-    if(signature.dest_operand == DIR_REGISTER_ADD)
-        printBinaryRegister(instruction_image[++i].reg_value);
-    else if(signature.dest_operand == DIR_ADD)
-        printf("%s\n", instruction_image[++i].label);
-    else if(signature.dest_operand == IMMEDIATE_ADD)
-        print_absolute_value(instruction_image[++i].data_value);
-    else
-        num_lines--;
-    return num_lines;
-}
-
 
 int first_pass() {
 
@@ -170,6 +79,10 @@ int first_pass() {
                     get_string(token);
                     break;
                 case (ENTRY):
+                   append_to_entry_file(token);
+                    break;
+                default:/* (EXTERNAL)*/
+
                     break;
             }
         } else if ((command_code = get_command_code(token)) != NOT_OPCODE) {/* If the token is a command */
@@ -204,6 +117,61 @@ int first_pass() {
         line_count++;
     }
     return valid_file;
+}
+
+/*
+int second_pass() {
+    machine
+
+    int i = 0;
+    while (i < ic) {
+        instruction_signature signature = instruction_image[i].signature;
+
+        if (signature.src_operand == DIR_ADD) {
+            update_label_address(++i, instruction_image[i].label);
+        }
+
+        if (signature.dest_operand == DIR_ADD) {
+            update_label_address(++i, instruction_image[i].label);
+        }
+        i++;
+    }
+}
+*/
+
+void append_to_entry_file(const char *label) {
+    /* Open the .ext file for appending */
+    char *ext_path = strdup(file_name_base);
+    strcat(ext_path, ".ext");
+    FILE *ext_file = fopen(ext_path, "a");  /* Change "output.ext" to your desired output filename */
+    if (ext_file == NULL) {
+        printf("ERROR: Failed to open .ext file for writing at line %d.\n", line_count);
+        valid_file = FALSE;
+        return;
+    }
+    fprintf(ext_file,"%s\n",label);
+}
+
+void update_label_address(int *operand_type, char *label) {
+    symbol *symbol_entry = (symbol *)symbol_lookup(label)->data;
+
+    if (symbol_entry != NULL) {
+        if (symbol_entry->symbol_type == DATA_TYPE) {
+            *operand_type = IMMEDIATE_ADD;
+            instruction_image[ic].data_value.value = symbol_entry->memory_address;
+            instruction_image[ic].data_value.ARE = (symbol_entry->symbol_type == EXTERNAL) ? External : Relocatable;
+            ic++;
+        } else if (symbol_entry->symbol_type == COMMAND_TYPE) {
+            *operand_type = DIR_ADD;
+            strncpy(instruction_image[ic].label, label, MAX_LABEL_LEN - 1);
+            instruction_image[ic].label[MAX_LABEL_LEN - 1] = '\0';
+            instruction_image[ic].data_value.ARE = Relocatable;
+            ic++;
+        }
+    } else {
+        printf("ERROR: Undefined label '%s' used as operand at line %d\n", label, line_count);
+        valid_file = FALSE;
+    }
 }
 
 /***
@@ -478,7 +446,7 @@ void put_data_in_image(int value) {
 
 int get_data_type(const char *token) {
     int i;
-    static char *data_keywords[] = { ".data", ".string", "extern", "entry" };
+    static char *data_keywords[] = { ".data", ".string", ".extern", ".entry" };
 
     if (*token == '.') {
         for (i = 0; i < sizeof(data_keywords) / sizeof(data_keywords[0]); i++) {
@@ -696,4 +664,89 @@ symbol *duplicate_symbol(const symbol *original) {
     new_symbol->symbol_type = original->symbol_type;
 
     return new_symbol;
+}
+
+void print_word_image(){
+    int i;
+    for(i = 0; i < dc ; i++)
+        print_memory_word(word_image[i].word);
+}
+void print_memory_word(unsigned int word) {
+
+
+    int i;
+    for (i = 11; i >= 0; i--) {
+        printf("%d", (word >> i) & 1);
+    }
+    printf("\n");
+}
+
+void print_instruction_image() {
+    int i = 0;
+    int param_lines_num = 0; /* the number of parameter lines from the command line */
+    int first_param_type = instruction_image[i].signature.dest_operand;
+    while (i < ic) {
+        print_instruction(instruction_image[i].signature);
+
+
+        i += (print_parameters(i, instruction_image[i].signature) + 1);/*prints the parameters and return the number of lines it took*/
+
+    }
+}
+
+void print_instruction(instruction_signature inst) {
+    int i;
+    unsigned int value = (inst.src_operand << 9) | (inst.opcode << 5) | (inst.dest_operand << 2) | inst.ARE;
+
+    for (i = word_size - 1; i >= 0; i--) {
+        printf("%d", (value >> i) & 1);
+    }
+    printf("\n");
+}
+
+int print_parameters(int i, instruction_signature signature) {
+
+    int num_lines = 2;
+    if(signature.src_operand == DIR_REGISTER_ADD && signature.dest_operand == DIR_REGISTER_ADD) {
+        printBinaryRegister(instruction_image[i + 1].reg_value);
+        return 0;
+    }
+    if(signature.src_operand == DIR_REGISTER_ADD)
+        printBinaryRegister(instruction_image[++i].reg_value);
+    else if(signature.src_operand == DIR_ADD)
+        printf("%s\n", instruction_image[++i].label);
+    else if(signature.src_operand == IMMEDIATE_ADD)
+        print_absolute_value(instruction_image[++i].data_value);
+    else
+        num_lines--;
+    if(signature.dest_operand == DIR_REGISTER_ADD)
+        printBinaryRegister(instruction_image[++i].reg_value);
+    else if(signature.dest_operand == DIR_ADD)
+        printf("%s\n", instruction_image[++i].label);
+    else if(signature.dest_operand == IMMEDIATE_ADD)
+        print_absolute_value(instruction_image[++i].data_value);
+    else
+        num_lines--;
+    return num_lines;
+}
+
+void print_absolute_value(instruction_absolute_value inst) {
+
+    unsigned int value = (inst.value << 2) | inst.ARE;
+
+    int i;
+    for (i = 11; i >= 0; i--) {
+        printf("%d", (value >> i) & 1);
+    }
+    printf("\n");
+}
+
+void printBinaryRegister(instruction_register_value inst) {
+    int i;
+    unsigned int value = (inst.source_register << 7) | (inst.destination_register << 2) | inst.ARE;
+
+    for (i = word_size - 1; i >= 0; i--) {
+        printf("%d", (value >> i) & 1);
+    }
+    printf("\n");
 }

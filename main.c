@@ -18,11 +18,11 @@ int main(int argc, char *argv[]) {
 
 
     if(argc == 1)
-        printf("no files to paras have been given\n");
+        printf("no files to assemble have been given\n");
 
     while(--argc > 0) {
 
-        printf("%s\n", *++argv);
+        printf("\n\n-------------%s---------------\n\n", *++argv);
 
         output_path = strdup(*argv);
         input_path = strdup(*argv);
@@ -38,10 +38,10 @@ int main(int argc, char *argv[]) {
         else if((output_file = preprocess(output_file, input_file)) == NULL)
             printf("failed to map macros from text in file %s, moving to next file\n", output_path);
 
-        else{
-            printf("successfully map macros from text in file %s,\n", input_path);
+        else{/*Successfully map macros from text to file*/
+
             fseek(output_file, 0L, 0);
-            assemble(output_file);
+            assemble(output_file, *argv);
 
             fclose(output_file);
             fclose(input_file);

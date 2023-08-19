@@ -82,7 +82,7 @@ typedef struct {
 
 /* Possible data types */
 enum data_types {
-    DATA, STRING, EXTERN, ENTRY, NOT_DATA_TYPE
+    DATA, STRING, EXTERNAL, ENTRY, NOT_DATA_TYPE
 };
 
 /* Possible command types */
@@ -113,10 +113,11 @@ enum {
 
 
 /*-------- main functions ------------*/
-void assemble(FILE *file);
+
+void assemble(FILE *file, char *file_name);
 int first_pass(void);
 int second_pass(void);
-
+void reset_first_pass_values();
 /**---------parsing functions-----------**/
 
 
@@ -130,7 +131,7 @@ void put_data_in_image(int value);
 void get_string(const char *parameters);
 int is_string_decleration(const char *data_values);
 int is_character_declaration(const char *operand);
-
+void append_to_entry_file(const char *label);
 
 /*instruction related functions */
 
@@ -159,8 +160,11 @@ struct nlist *symbol_install(symbol *data);
 symbol *duplicate_symbol(const symbol *original);
 
 /*testing funcitons*/
-int print_parameters(int i, instruction_signature signature);
 void print_instruction_image();
+void print_instruction(instruction_signature inst);
+int print_parameters(int i, instruction_signature signature);
+void print_absolute_value(instruction_absolute_value inst);
+void printBinaryRegister(instruction_register_value inst);
 void print_memory_word(unsigned int word);
 void print_word_image();
 
