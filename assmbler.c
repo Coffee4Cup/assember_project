@@ -26,7 +26,7 @@ void assemble(FILE *file, char *file_name) {
     first_pass();
     print_instruction_image();
     print_word_image();
-    /*second_pass();*/
+    second_pass();
 }
 void reset_first_pass_values() {
     ic = 0;
@@ -43,6 +43,7 @@ int first_pass() {
 
     int data_type, command_code;
     char *token, line[MAX_LINE_LEN];
+    int external_flag = FALSE, entry_flag = FALSE;
 
     reset_first_pass_values();
 
@@ -79,7 +80,7 @@ int first_pass() {
                     get_string(token);
                     break;
                 case (ENTRY):
-                   append_to_entry_file(token);
+                   append_to_entry_file(token, &entry_flag);
                     break;
                 default:/* (EXTERNAL)*/
 
@@ -119,59 +120,143 @@ int first_pass() {
     return valid_file;
 }
 
-/*
+
+void assemble_data_image(memory_word **machine);
+
 int second_pass() {
-    machine
 
-    int i = 0;
-    while (i < ic) {
-        instruction_signature signature = instruction_image[i].signature;
-
-        if (signature.src_operand == DIR_ADD) {
-            update_label_address(++i, instruction_image[i].label);
-        }
-
-        if (signature.dest_operand == DIR_ADD) {
-            update_label_address(++i, instruction_image[i].label);
-        }
-        i++;
-    }
+    memory_word machine[MEMORY_SIZE] = {0};
+    assemble_instruction_image((memory_word **) &machine);
+    assemble_data_image((memory_word **) &machine);
+    print_word_image();
+return valid_file;
 }
-*/
 
-void append_to_entry_file(const char *label) {
-    /* Open the .ext file for appending */
-    char *ext_path = strdup(file_name_base);
-    strcat(ext_path, ".ext");
-    FILE *ext_file = fopen(ext_path, "a");  /* Change "output.ext" to your desired output filename */
-    if (ext_file == NULL) {
-        printf("ERROR: Failed to open .ext file for writing at line %d.\n", line_count);
-        valid_file = FALSE;
-        return;
+void assemble_data_image(memory_word **machine) {
+    int i = ic;/*pointer for the last free space in the machine*/
+    int j; /*index for the data image*/
+    for(j = 0; j < dc; j++)
+        machine[j]->word = word_image[i + j].word;
+
+}
+
+
+void append_to_entry_file(const char *label, int *entry_flag) {
+
+    static FILE *ext_file;
+    if(*entry_flag == FALSE)
+    {
+        char *ext_path = strdup(file_name_base);
+        strcat(ext_path, ".ext");
+        ext_file = fopen(ext_path, "w");  /* Change "output.ext" to your desired output filename */
+        if (ext_file == NULL) {
+            printf("ERROR: Failed to open .ext file for writing at line %d.\n", line_count);
+            valid_file = FALSE;
+        }
+        *entry_flag = TRUE;
     }
+
     fprintf(ext_file,"%s\n",label);
 }
 
-void update_label_address(int *operand_type, char *label) {
+
+
+/*
+ * gets the instructions from the image and puts them in the corresponding memory address of the machine
+ * */
+void assemble_instruction_image(memory_word **machine) {
+
+    int i = 0;
+    while (i < ic) {
+        assemble_instruction(i + MIN_VALID_ADD, instruction_image[i].signature, machine);
+        i += assemble_parameters(i, i + MIN_VALID_ADD, instruction_image[i].signature , machine);/*prints the parameters and return the number of lines it took*/
+
+    }
+}
+
+void assemble_instruction(int pc ,instruction_signature signature, memory_word **machine) {
+
+    unsigned int value = (signature.src_operand << 9) | (signature.opcode << 5) | (signature.dest_operand << 2) | signature.ARE;
+    machine[pc]->word = value;
+}
+
+int assemble_parameters(int i, int pc, instruction_signature signature, memory_word **machine) {
+
+    int num_lines = 2;
+    instruction_absolute_value *temp_value;
+    if(signature.src_operand == DIR_REGISTER_ADD && signature.dest_operand == DIR_REGISTER_ADD) {
+        assemble_register(pc + 1, instruction_image[i + 1].reg_value, machine);
+        return 1;
+    }
+    if(signature.src_operand == DIR_REGISTER_ADD)
+        assemble_register(pc + 1, instruction_image[++i].reg_value, machine);
+    else if(signature.src_operand == DIR_ADD)
+    {
+        if((temp_value = get_label_address(instruction_image[++i].label)))
+            assemble_absolute_value(pc + 1, *temp_value, machine);
+    }
+    else if(signature.src_operand == IMMEDIATE_ADD)
+        assemble_absolute_value(pc + 1, instruction_image[++i].data_value, machine);
+    else
+        num_lines--;
+
+    if(signature.dest_operand == DIR_REGISTER_ADD)
+        assemble_register(pc + num_lines, instruction_image[++i].reg_value, machine);
+    else if(signature.dest_operand == DIR_ADD)
+    {
+        if((temp_value = get_label_address(instruction_image[++i].label)))
+            assemble_absolute_value(pc + num_lines, *temp_value, machine);;
+    }
+    else if(signature.dest_operand == IMMEDIATE_ADD)
+        assemble_absolute_value(pc + num_lines,instruction_image[++i].data_value, machine);
+    else
+        num_lines--;
+
+    return num_lines;
+
+}
+
+void assemble_absolute_value(int pc, instruction_absolute_value inst, memory_word **machine) {
+    unsigned int value = (inst.value << 2) | inst.ARE;
+    machine[pc]->word = value;
+}
+
+void assemble_register( int pc, instruction_register_value inst, memory_word **machine) {
+    unsigned int value = (inst.source_register << 7) | (inst.destination_register << 2) | inst.ARE;
+    machine[pc]->word = value;
+}
+
+instruction_absolute_value *get_label_address(char *label) {
+
+    instruction_absolute_value *instruction_value = malloc(sizeof(instruction_absolute_value));
     symbol *symbol_entry = (symbol *)symbol_lookup(label)->data;
 
-    if (symbol_entry != NULL) {
-        if (symbol_entry->symbol_type == DATA_TYPE) {
-            *operand_type = IMMEDIATE_ADD;
-            instruction_image[ic].data_value.value = symbol_entry->memory_address;
-            instruction_image[ic].data_value.ARE = (symbol_entry->symbol_type == EXTERNAL) ? External : Relocatable;
-            ic++;
-        } else if (symbol_entry->symbol_type == COMMAND_TYPE) {
-            *operand_type = DIR_ADD;
-            strncpy(instruction_image[ic].label, label, MAX_LABEL_LEN - 1);
-            instruction_image[ic].label[MAX_LABEL_LEN - 1] = '\0';
-            instruction_image[ic].data_value.ARE = Relocatable;
-            ic++;
-        }
-    } else {
+    if (symbol_entry == NULL) {
         printf("ERROR: Undefined label '%s' used as operand at line %d\n", label, line_count);
         valid_file = FALSE;
+        free(instruction_value);
+        return NULL;
     }
+    if(symbol_entry->symbol_type == EXTERNAL_TYPE)
+    {
+        instruction_value->value = EXTERNAL_ADDRESS;
+        instruction_value->ARE = EXTERNAL;
+        return instruction_value;
+    }
+    else if (symbol_entry->symbol_type == DATA_TYPE) {
+        instruction_value->value = (MIN_VALID_ADD+ ic + symbol_entry->memory_address);
+        instruction_value->ARE = Relocatable;
+    }
+    else if (symbol_entry->symbol_type == COMMAND_TYPE) {
+        instruction_value->value = (MIN_VALID_ADD + symbol_entry->memory_address);
+        instruction_value->ARE = Relocatable;
+    }
+    else {
+    printf("ERROR: Undefined label '%s' used as operand at line %d\n", label, line_count);
+    valid_file = FALSE;
+    return NULL;
+    }
+    return instruction_value;
 }
 
 /***
@@ -665,7 +750,12 @@ symbol *duplicate_symbol(const symbol *original) {
 
     return new_symbol;
 }
-
+void print_machine_memory(memory_word **machine){
+    int  i = MIN_VALID_ADD;
+    int memory = ic + dc ;
+    while (i < memory)
+        printf("%d\n", machine[i]->word);
+}
 void print_word_image(){
     int i;
     for(i = 0; i < dc ; i++)
@@ -694,9 +784,9 @@ void print_instruction_image() {
     }
 }
 
-void print_instruction(instruction_signature inst) {
+void print_instruction(instruction_signature signature) {
     int i;
-    unsigned int value = (inst.src_operand << 9) | (inst.opcode << 5) | (inst.dest_operand << 2) | inst.ARE;
+    unsigned int value = (signature.src_operand << 9) | (signature.opcode << 5) | (signature.dest_operand << 2) | signature.ARE;
 
     for (i = word_size - 1; i >= 0; i--) {
         printf("%d", (value >> i) & 1);
@@ -709,7 +799,7 @@ int print_parameters(int i, instruction_signature signature) {
     int num_lines = 2;
     if(signature.src_operand == DIR_REGISTER_ADD && signature.dest_operand == DIR_REGISTER_ADD) {
         printBinaryRegister(instruction_image[i + 1].reg_value);
-        return 0;
+        return 1;
     }
     if(signature.src_operand == DIR_REGISTER_ADD)
         printBinaryRegister(instruction_image[++i].reg_value);

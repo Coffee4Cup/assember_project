@@ -1,7 +1,7 @@
 
 
-#ifndef ASMBLER_2_ASSMBLER_H
-#define ASMBLER_2_ASSMBLER_H
+#ifndef ASMBLER_2_assembleR_H
+#define ASMBLER_2_assembleR_H
 
 
 #include <stdio.h>
@@ -15,7 +15,10 @@
 #define MAX_LABEL_LEN 31
 #define MAX_DATA_VALUE 2047
 #define MIN_DATA_VALUE (-2048)
-
+#define MIN_VALID_ADD 100
+#define EXTERNAL_ADDRESS 0
+#define MEMORY_SIZE 2048
+#define PC(i) (100 + (i))
 /*instructed that the maximum line length is 80, not including the newline char*/
 
 /*The max and min values that a word in memory can have using 12 bits using two's complement representation. */
@@ -104,7 +107,7 @@ enum parameter_address_types {
 
 /* Symbol types */
 enum symbol_type {
-    DATA_TYPE, COMMAND_TYPE
+    DATA_TYPE, COMMAND_TYPE, EXTERNAL_TYPE
 };
 
 enum {
@@ -120,6 +123,12 @@ int second_pass(void);
 void reset_first_pass_values();
 /**---------parsing functions-----------**/
 
+void assemble_instruction_image(memory_word **machine);
+void assemble_instruction(int pc ,instruction_signature signature, memory_word **machine);
+int assemble_parameters(int i, int pc, instruction_signature signature, memory_word **machine);
+instruction_absolute_value *get_label_address(char *label);
+void assemble_register(int i, instruction_register_value value, memory_word **machine);
+void assemble_absolute_value(int i, instruction_absolute_value value, memory_word **machine);
 
 /*data related functions*/
 
@@ -131,7 +140,7 @@ void put_data_in_image(int value);
 void get_string(const char *parameters);
 int is_string_decleration(const char *data_values);
 int is_character_declaration(const char *operand);
-void append_to_entry_file(const char *label);
+void append_to_entry_file(const char *label, int *entry_flag);
 
 /*instruction related functions */
 
