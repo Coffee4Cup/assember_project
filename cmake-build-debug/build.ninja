@@ -67,6 +67,12 @@ build CMakeFiles/asmbler_2.dir/lookup_table.c.obj: C_COMPILER__asmbler_2_Debug C
   OBJECT_DIR = CMakeFiles\asmbler_2.dir
   OBJECT_FILE_DIR = CMakeFiles\asmbler_2.dir
 
+build CMakeFiles/asmbler_2.dir/macro.c.obj: C_COMPILER__asmbler_2_Debug C$:/Users/itay8/Desktop/C_lab/asmbler_2/macro.c || cmake_object_order_depends_target_asmbler_2
+  DEP_FILE = CMakeFiles\asmbler_2.dir\macro.c.obj.d
+  FLAGS = -g -fdiagnostics-color=always -std=gnu90
+  OBJECT_DIR = CMakeFiles\asmbler_2.dir
+  OBJECT_FILE_DIR = CMakeFiles\asmbler_2.dir
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target asmbler_2
@@ -75,7 +81,7 @@ build CMakeFiles/asmbler_2.dir/lookup_table.c.obj: C_COMPILER__asmbler_2_Debug C
 #############################################
 # Link the executable asmbler_2.exe
 
-build asmbler_2.exe: C_EXECUTABLE_LINKER__asmbler_2_Debug CMakeFiles/asmbler_2.dir/main.c.obj CMakeFiles/asmbler_2.dir/assmbler.c.obj CMakeFiles/asmbler_2.dir/lookup_table.c.obj
+build asmbler_2.exe: C_EXECUTABLE_LINKER__asmbler_2_Debug CMakeFiles/asmbler_2.dir/main.c.obj CMakeFiles/asmbler_2.dir/assmbler.c.obj CMakeFiles/asmbler_2.dir/lookup_table.c.obj CMakeFiles/asmbler_2.dir/macro.c.obj
   FLAGS = -g
   LINK_LIBRARIES = -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\asmbler_2.dir

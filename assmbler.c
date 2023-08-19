@@ -143,7 +143,11 @@ int first_pass() {
     while (fgets(line, sizeof(line), input_file)) {
         token = strtok(line, " \t\n");
 
-        if (is_label_decleration(token)) {
+        if(token == NULL) {
+            line_count++;
+            break;
+        }
+        else if (is_label_decleration(token)) {
             /* If the line starts with a label */
             temp_symbol.label = get_label(token);
             is_symbol = TRUE;
@@ -171,7 +175,7 @@ int first_pass() {
         } else if ((command_code = get_command_code(token)) != NOT_OPCODE) {/* If the token is a command */
 
             /*saves the type of level and the address*/
-            temp_symbol.symbol_type = COMMEND_TYPE;
+            temp_symbol.symbol_type = COMMAND_TYPE;
             temp_symbol.memory_address = ic;
 
             /*install instruction in the instruction image*/
